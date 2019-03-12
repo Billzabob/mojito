@@ -1,0 +1,6 @@
+addSbtPlugin("org.xerial.sbt"     % "sbt-sonatype"    % "2.4")
+addSbtPlugin("com.47deg"          % "sbt-microsites"  % "0.9.0")
+addSbtPlugin("org.scoverage"      % "sbt-scoverage"   % "1.5.1")
+addSbtPlugin("org.wartremover"    % "sbt-wartremover" % "2.4.1")
+addSbtPlugin("com.timushev.sbt"   % "sbt-updates"     % "0.4.0")
+addSbtPlugin("pl.project13.scala" % "sbt-jmh"         % "0.3.4")
