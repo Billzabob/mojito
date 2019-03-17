@@ -11,4 +11,4 @@ lazy val scala212      = "2.12.8"
 
 crossScalaVersions := List(scala212, scala211)
 
-libraryDependencies += "org.tpolecat" %% "atto-core"    % "0.6.5"
+libraryDependencies += "org.tpolecat" %% "atto-core"  % "0.6.5"

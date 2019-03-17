@@ -9,7 +9,7 @@ import cats.implicits._
 
 object parse extends App {
   def token[A](p: Parser[A]): Parser[A] =
-    ignoredSpace ~> p <~ ignoredSpace
+    p <~ ignoredSpace
 
   def ignoredSpace: Parser[Unit] =
     many(ignored).void named "whitespace"
@@ -181,8 +181,7 @@ object parse extends App {
       |  test
       |  :
       |  [10, 12]
-      |  )
-      |  {hi}
+      |  ){hi}
       |}""".stripMargin
 
   val Done(remaining, result) = document.parse(test).done
