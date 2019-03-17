@@ -9,23 +9,20 @@ import cats.implicits._
 
 object parse extends App {
   def token[A](p: Parser[A]): Parser[A] =
-    p <~ ignoredSpace
-
-  def ignoredSpace: Parser[Unit] =
-    many(ignored).void named "whitespace"
+    p <~ ignoredSpace named "token"
 
   def bracket[A, B, C](left: Parser[B], p: => Parser[A], right: => Parser[C]): Parser[A] =
-    token(left) ~> token(p) <~ token(right)
+    token(left) ~> p <~ token(right)
 
   def braces[A](p: => Parser[A]): Parser[A] = {
-    bracket(char('{'), p, char('}')).named("braces")
+    bracket(char('{'), p, char('}')) named "braces"
   }
 
   def parens[A](p: => Parser[A]): Parser[A] =
-    bracket(char('('), p, char(')')).named("parens")
+    bracket(char('('), p, char(')')) named "parens"
 
   def squareBrackets[A](p: => Parser[A]): Parser[A] = {
-    bracket(char('['), p, char(']')).named("square brackets")
+    bracket(char('['), p, char(']')) named "square brackets"
   }
 
   val tab = char('\t')
@@ -46,17 +43,19 @@ object parse extends App {
 
   val commentChar = tab | charRange(' ' to '\uFFFF')
 
-  val comment = (char('#') ~ stringOf(commentChar)) -| { case (a, b) => a + b }
+  val comment = char('#') ~ stringOf(commentChar) -| { case (a, b) => a + b } named "comment"
 
   val comma = char(',')
 
-  val ignored = (unicodeBom | whitespace | comma) -| (_.toString) | lineTerminator | comment
+  val ignored = (unicodeBom | whitespace | comma) -| (_.toString) | lineTerminator | comment named "ignored"
+
+  val ignoredSpace = many(ignored).void named "ignored space"
 
   val underscore = char('_')
 
   val colon = token(char(':'))
 
-  val letter = charRange('A' to 'z')
+  val letter = charRange('A' to 'Z') | charRange('a' to 'z')
 
   val digit = charRange('0' to '9')
 
@@ -64,7 +63,7 @@ object parse extends App {
 
   val nameRest = nameFirst | digit
 
-  val name = token((nameFirst ~ stringOf(nameRest)) -| { case (a, b) => a + b } named "name")
+  val name = token(nameFirst ~ stringOf(nameRest) -| { case (a, b) => a + b } named "name")
 
   val operationType = string("query") | string("mutation") | string("subscription")
 
@@ -78,15 +77,15 @@ object parse extends App {
 
   val sig = char('-') >| -1 | ok(1) named "negative sign"
 
-  val sigNum = {
-    for {
-      a <- sig
-      b <- stringOf1(digit)
-      n <- ok(BigInt(a) * BigInt(b))
-    } yield n
-  } named "signed number"
+  val sigNum = (sig, nonZeroDigit, stringOf(digit)).mapN { case (a, b, c) => a * BigInt(b + c) } named "signed number"
 
-  val intPart = (sig ~> char('0')) >| BigInt(0) | sigNum named "int part"
+  val intPart = sig ~> char('0') >| BigInt(0) | sigNum named "int part"
+
+  val fracPart = char('.') ~> stringOf1(digit).map(BigInt(_))
+
+  val expIndicator = char('e') | char('E')
+
+  val expPart = (expIndicator ~> sig, stringOf1(digit)).mapN { case (a, b) =>  a * BigInt(b) }
 
   sealed trait Value
 
@@ -102,30 +101,32 @@ object parse extends App {
 
   final case class ListValue(values: List[Value]) extends Value
 
-  val variable = token(char('$')) ~> name -| Variable.apply
+  val variable = token(char('$')) ~> name -| Variable.apply named "variable"
 
-  val intValue = token(intPart -| IntValue.apply)
+  val intValue = token(intPart -| IntValue.apply) named "integer value"
 
   def floatValue = token(???)
 
   def stringValue = token(???)
 
-  val booleanValue = (string("true") >| true | string("false") >| false) -| BooleanValue.apply
+  val keywords = "true" :: "false" :: "null" :: Nil
 
-  val nullValue = string("null") >| NullValue
+  val enumValue = name.filter(a => !keywords.contains(a)) -| EnumValue.apply named "enum value"
 
-  val enumValue = name -| EnumValue.apply
+  val booleanValue = token((string("true") >| true | string("false") >| false) -| BooleanValue.apply) named "boolean value"
 
-  lazy val listValue = squareBrackets(many(value)) -| ListValue.apply
+  val nullValue = token(string("null") >| NullValue) named "null value"
+
+  lazy val listValue = squareBrackets(many(value)) -| ListValue.apply named "list value"
 
   def objectValue = ???
 
   val value: Parser[Value] =
     intValue -| (a => a: Value) |
     variable -| (a => a: Value) |
+    enumValue -| (a => a: Value) |
     booleanValue -| (a => a: Value) |
     nullValue -| (a => a: Value) |
-    enumValue -| (a => a: Value) |
     listValue -| (a => a: Value) named "value"
 
   case class Argument(name: String, value: Value)
@@ -180,12 +181,17 @@ object parse extends App {
       |  (
       |  test
       |  :
-      |  [10, 12]
-      |  ){hi}
+      |  [
+      |  null
+      |  ]
+      |  )
+      |  {
+      |  hi
+      |  }
       |}""".stripMargin
 
   val Done(remaining, result) = document.parse(test).done
 
   println(s"result: $result")
-  println(s"remaining: $remaining")
+  println(s"""remaining: "$remaining"""")
 }
