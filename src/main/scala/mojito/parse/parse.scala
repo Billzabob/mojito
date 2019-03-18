@@ -43,7 +43,7 @@ object parse extends App {
 
   val commentChar = tab | charRange(' ' to '\uFFFF')
 
-  val comment = char('#') ~ stringOf(commentChar) -| { case (a, b) => a + b } named "comment"
+  val comment = char('#') ~ stringOf(commentChar) -| { case (a, b) => a.toString + b } named "comment"
 
   val comma = char(',')
 
@@ -63,7 +63,7 @@ object parse extends App {
 
   val nameRest = nameFirst | digit
 
-  val name = token(nameFirst ~ stringOf(nameRest) -| { case (a, b) => a + b } named "name")
+  val name = token(nameFirst ~ stringOf(nameRest) -| { case (a, b) => a.toString + b } named "name")
 
   val operationType = string("query") | string("mutation") | string("subscription")
 
@@ -77,7 +77,7 @@ object parse extends App {
 
   val sig = char('-') >| -1 | ok(1) named "negative sign"
 
-  val sigNum = (sig, nonZeroDigit, stringOf(digit)).mapN { case (a, b, c) => a * BigInt(b + c) } named "signed number"
+  val sigNum = (sig, nonZeroDigit, stringOf(digit)).mapN { case (a, b, c) => a * BigInt(b.toString + c) } named "signed number"
 
   val intPart = sig ~> char('0') >| BigInt(0) | sigNum named "int part"
 
@@ -85,15 +85,17 @@ object parse extends App {
 
   val expIndicator = char('e') | char('E')
 
-  val expPart = (expIndicator ~> sig, stringOf1(digit)).mapN { case (a, b) =>  a * BigInt(b) }
+  val expPart = (expIndicator ~> sig, stringOf1(digit)).mapN { case (a, b) => a * BigInt(b) }
 
-  sealed trait Value
+  sealed trait Value extends Product with Serializable
 
   final case class IntValue(value: BigInt) extends Value
 
+  final case class FloatValue(value: BigDecimal) extends Value
+
   final case class Variable(name: String) extends Value
 
-  final case class BooleanValue(bool: Boolean) extends Value
+  final case class BoolValue(bool: Boolean) extends Value
 
   final case object NullValue extends Value
 
@@ -105,15 +107,19 @@ object parse extends App {
 
   val intValue = token(intPart -| IntValue.apply) named "integer value"
 
-  def floatValue = token(???)
+  val floatPart = (intPart, fracPart).mapN { case (a, b) => BigDecimal(s"$a.$b") }
 
-  def stringValue = token(???)
+  val number = (floatPart | (intPart -| BigDecimal.apply), expPart).mapN { case (a, b) => BigDecimal(s"${a}e$b") }
+
+  val floatValue = token((number | floatPart) -| FloatValue.apply) named "float value"
+
+//  def stringValue = token(???)
 
   val keywords = "true" :: "false" :: "null" :: Nil
 
   val enumValue = name.filter(a => !keywords.contains(a)) -| EnumValue.apply named "enum value"
 
-  val booleanValue = token((string("true") >| true | string("false") >| false) -| BooleanValue.apply) named "boolean value"
+  val booleanValue = token((string("true") >| true | string("false") >| false) -| BoolValue.apply) named "boolean value"
 
   val nullValue = token(string("null") >| NullValue) named "null value"
 
@@ -121,21 +127,23 @@ object parse extends App {
 
   def objectValue = ???
 
-  val value: Parser[Value] =
-    intValue -| (a => a: Value) |
-    variable -| (a => a: Value) |
-    enumValue -| (a => a: Value) |
-    booleanValue -| (a => a: Value) |
-    nullValue -| (a => a: Value) |
-    listValue -| (a => a: Value) named "value"
+  val value: Parser[Value] = {
+    floatValue.widen[Value] |
+    intValue.widen[Value] |
+    variable.widen[Value] |
+    enumValue.widen[Value] |
+    booleanValue.widen[Value] |
+    nullValue.widen[Value] |
+    listValue.widen[Value]
+  } named "value"
 
-  case class Argument(name: String, value: Value)
+  final case class Argument(name: String, value: Value)
 
   val argument = (name <~ colon, value).mapN(Argument.apply) named "argument"
 
   val arguments = parens(many1(argument)) named "arguments"
 
-  case class Field(alias: Option[String], name: String, arguments: Option[NonEmptyList[Argument]], selectionSet: Option[NonEmptyList[Field]])
+  final case class Field(alias: Option[String], name: String, arguments: Option[NonEmptyList[Argument]], selectionSet: Option[NonEmptyList[Field]])
 
   val field: Parser[Field] = (
     opt(alias),
@@ -149,7 +157,7 @@ object parse extends App {
 
   lazy val selectionSet = braces(many1(selection)) named "selection set"
 
-  sealed trait Definition
+  sealed trait Definition extends Product with Serializable
 
   sealed trait ExecutableDefinition extends Definition
 
@@ -171,7 +179,7 @@ object parse extends App {
 
   val definition: Parser[Definition] = executableDefinition -| (d => d: Definition) named "definition" // | typeSystemDefinition | typeSystemExtension
 
-  case class Document(definitions: NonEmptyList[Definition])
+  final case class Document(definitions: NonEmptyList[Definition])
 
   val document = many1(definition) -| Document.apply named "document"
 
@@ -182,7 +190,8 @@ object parse extends App {
       |  test
       |  :
       |  [
-      |  null
+      |  1
+      |  1.12e53
       |  ]
       |  )
       |  {
