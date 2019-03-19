@@ -8,22 +8,15 @@ import cats.data.NonEmptyList
 import cats.implicits._
 
 object parse extends App {
-  def token[A](p: Parser[A]): Parser[A] =
-    p <~ ignoredSpace named "token"
+  def token[A](p: Parser[A]) = p <~ ignoredSpace named "token"
 
-  def bracket[A, B, C](left: Parser[B], p: => Parser[A], right: => Parser[C]): Parser[A] =
-    token(left) ~> p <~ token(right)
+  def bracket[A, B, C](left: Parser[B], p: => Parser[A], right: => Parser[C]) = token(left) ~> p <~ token(right)
 
-  def braces[A](p: => Parser[A]): Parser[A] = {
-    bracket(char('{'), p, char('}')) named "braces"
-  }
+  def braces[A](p: => Parser[A]): Parser[A] = bracket(char('{'), p, char('}')) named "braces"
 
-  def parens[A](p: => Parser[A]): Parser[A] =
-    bracket(char('('), p, char(')')) named "parens"
+  def parens[A](p: => Parser[A]): Parser[A] = bracket(char('('), p, char(')')) named "parens"
 
-  def squareBrackets[A](p: => Parser[A]): Parser[A] = {
-    bracket(char('['), p, char(']')) named "square brackets"
-  }
+  def squareBrackets[A](p: => Parser[A]): Parser[A] = bracket(char('['), p, char(']')) named "square brackets"
 
   val tab = char('\t')
 
@@ -39,7 +32,7 @@ object parse extends App {
 
   val whitespace = tab | space
 
-  val lineTerminator = string("\r\n") | newline -| (_.toString)
+  val lineTerminator = string("\r\n") | stringOf1(newline)
 
   val commentChar = tab | charRange(' ' to '\uFFFF')
 
@@ -47,7 +40,7 @@ object parse extends App {
 
   val comma = char(',')
 
-  val ignored = (unicodeBom | whitespace | comma) -| (_.toString) | lineTerminator | comment named "ignored"
+  val ignored = stringOf1(unicodeBom | whitespace | comma) | lineTerminator | comment named "ignored"
 
   val ignoredSpace = many(ignored).void named "ignored space"
 
@@ -81,7 +74,7 @@ object parse extends App {
 
   val intPart = sig ~> char('0') >| BigInt(0) | sigNum named "int part"
 
-  val fracPart = char('.') ~> stringOf1(digit).map(BigInt(_))
+  val fracPart = char('.') ~> stringOf1(digit) -| BigInt.apply
 
   val expIndicator = char('e') | char('E')
 
@@ -92,6 +85,8 @@ object parse extends App {
   final case class IntValue(value: BigInt) extends Value
 
   final case class FloatValue(value: BigDecimal) extends Value
+
+  final case class StringValue(name: String) extends Value
 
   final case class Variable(name: String) extends Value
 
@@ -113,11 +108,37 @@ object parse extends App {
 
   val floatValue = token((number | floatPart) -| FloatValue.apply) named "float value"
 
-//  def stringValue = token(???)
+  val unicode = string("\\u") ~> count(4, hexDigit) -| (c => Integer.parseInt(new String(c.toArray), 16).toChar)
 
-  val keywords = "true" :: "false" :: "null" :: Nil
+  val escapeChars = NonEmptyList.of('"', '\\', '/', '\b', '\f', '\n', '\r', '\t')
 
-  val enumValue = name.filter(a => !keywords.contains(a)) -| EnumValue.apply named "enum value"
+  val escapedChar = char('\\') ~> escapeChars.map(char).reduceLeft(_ | _)
+
+  val nonStringChars = NonEmptyList.of('\\', '"', '\r', '\n')
+
+  val quotation = char('"')
+
+  val stringChar = sourceChar.filter(c => !nonStringChars.contains_(c)) | unicode | escapedChar
+
+  val quotedString = quotation ~> stringOf(stringChar) <~ quotation
+
+  val blockQuote = """""""""
+
+  val escapedBlockQuote = "\\" + blockQuote
+
+  // TODO                                filter won't work, need so other way
+  val blockString = stringOf(sourceChar).filter(c => c =!= blockQuote && c =!= escapedBlockQuote) | string(escapedBlockQuote) >| blockQuote
+
+  // TODO
+  def blockStringValue(raw: String) = raw
+
+  val blockQuotedString = string(blockQuote) ~> blockString -| blockStringValue <~ string(blockQuote) named "block quote"
+
+  val stringValue = token(blockQuotedString) -| StringValue.apply named "string value"
+
+  val keywords = NonEmptyList.of("true", "false", "null")
+
+  val enumValue = name.filter(a => !keywords.contains_(a)) -| EnumValue.apply named "enum value"
 
   val booleanValue = token((string("true") >| true | string("false") >| false) -| BoolValue.apply) named "boolean value"
 
@@ -125,11 +146,12 @@ object parse extends App {
 
   lazy val listValue = squareBrackets(many(value)) -| ListValue.apply named "list value"
 
-  def objectValue = ???
+//  def objectValue = ???
 
   val value: Parser[Value] = {
     floatValue.widen[Value] |
     intValue.widen[Value] |
+    stringValue.widen[Value] |
     variable.widen[Value] |
     enumValue.widen[Value] |
     booleanValue.widen[Value] |
@@ -183,8 +205,10 @@ object parse extends App {
 
   val document = many1(definition) -| Document.apply named "document"
 
+  val block = "\"\"\"test\"\"\""
+
   val test =
-    """{  #   testing
+    s"""{  #   testing
       |  hi
       |  (
       |  test
@@ -192,6 +216,7 @@ object parse extends App {
       |  [
       |  1
       |  1.12e53
+      |  $block
       |  ]
       |  )
       |  {
