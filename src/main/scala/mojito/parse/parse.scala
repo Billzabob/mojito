@@ -122,17 +122,17 @@ object parse extends App {
 
   val quotedString = quotation ~> stringOf(stringChar) <~ quotation
 
-  val blockQuote = """""""""
+  val blockQuote = "\"\"\""
 
+  // TODO: use this
   val escapedBlockQuote = "\\" + blockQuote
 
-  // TODO                                filter won't work, need so other way
-  val blockString = stringOf(sourceChar).filter(c => c =!= blockQuote && c =!= escapedBlockQuote) | string(escapedBlockQuote) >| blockQuote
+  val blockString = manyUntil(sourceChar, string(blockQuote)) -| (_.mkString) named "block string"
 
   // TODO
   def blockStringValue(raw: String) = raw
 
-  val blockQuotedString = string(blockQuote) ~> blockString -| blockStringValue <~ string(blockQuote) named "block quote"
+  val blockQuotedString = string(blockQuote) ~> blockString -| blockStringValue named "block quote"
 
   val stringValue = token(blockQuotedString) -| StringValue.apply named "string value"
 

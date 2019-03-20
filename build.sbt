@@ -100,6 +100,7 @@ lazy val buildSettings = Seq(
   version := "0.0.1",
   organization := "org.billzabob",
   libraryDependencies += "org.tpolecat" %% "atto-core"  % "0.6.5",
+  libraryDependencies += "com.47deg" %% "fetch" % "1.0.0",
   licenses ++= Seq(
     ("MIT", url("http://opensource.org/licenses/MIT"))
   ),
