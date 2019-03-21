@@ -136,7 +136,6 @@ object parse extends App {
 
   lazy val escapedBlock: Parser[String] = string(escapedBlockQuote) >> (ok(blockQuote), blockString).mapN(_ + _)
 
-  // TODO
   def blockStringValue(raw: String) = {
     def isBlank(str: String) = str.forall(isWhiteSpace)
 
