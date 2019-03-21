@@ -18,19 +18,25 @@ object parse extends App {
 
   def squareBrackets[A](p: => Parser[A]): Parser[A] = bracket(char('['), p, char(']')) named "square brackets"
 
+  // Like atto's built in manyUtil, but doesn't discard until value
+  def manyUntil[A](p: Parser[A], q: Parser[A]): Parser[List[A]] = {
+    lazy val scan: Parser[List[A]] = q -| (_ :: Nil) | cons(p, scan) -| (_.toList)
+    scan named "manyUntil"
+  }
+
   val tab = char('\t')
 
   val newline = char('\n')
 
   val carriageReturn = char('\r')
 
-  val space = char(' ')
-
   val sourceChar = tab | newline | carriageReturn | charRange(' ' to '\uFFFF')
 
   val unicodeBom = char('\uFEFF')
 
-  val whitespace = tab | space
+  def isWhiteSpace(c: Char) = c === ' ' || c === '\t'
+
+  val whitespace = satisfy(isWhiteSpace)
 
   val lineTerminator = string("\r\n") | stringOf1(newline)
 
@@ -68,17 +74,17 @@ object parse extends App {
 
   val nonZeroDigit = charRange('1' to '9') named "non-zero digit"
 
-  val sig = char('-') >| -1 | ok(1) named "negative sign"
+  val sign = char('-') >| -1 | ok(1) named "negative sign"
 
-  val sigNum = (sig, nonZeroDigit, stringOf(digit)).mapN { case (a, b, c) => a * BigInt(b.toString + c) } named "signed number"
+  val sigNum = (sign, nonZeroDigit, stringOf(digit)).mapN((s, nz, d) => s * BigInt(nz.toString + d)) named "signed number"
 
-  val intPart = sig ~> char('0') >| BigInt(0) | sigNum named "int part"
+  val intPart = sign ~> char('0') >| BigInt(0) | sigNum named "int part"
 
   val fracPart = char('.') ~> stringOf1(digit) -| BigInt.apply
 
   val expIndicator = char('e') | char('E')
 
-  val expPart = (expIndicator ~> sig, stringOf1(digit)).mapN { case (a, b) => a * BigInt(b) }
+  val expPart = (expIndicator ~> sign, stringOf1(digit)).mapN(_ * BigInt(_))
 
   sealed trait Value extends Product with Serializable
 
@@ -102,9 +108,9 @@ object parse extends App {
 
   val intValue = token(intPart -| IntValue.apply) named "integer value"
 
-  val floatPart = (intPart, fracPart).mapN { case (a, b) => BigDecimal(s"$a.$b") }
+  val floatPart = (intPart, fracPart).mapN((i, f) => BigDecimal(s"$i.$f"))
 
-  val number = (floatPart | (intPart -| BigDecimal.apply), expPart).mapN { case (a, b) => BigDecimal(s"${a}e$b") }
+  val number = (floatPart | (intPart -| BigDecimal.apply), expPart).mapN((i, b) => BigDecimal(s"${i}e$b"))
 
   val floatValue = token((number | floatPart) -| FloatValue.apply) named "float value"
 
@@ -124,13 +130,21 @@ object parse extends App {
 
   val blockQuote = "\"\"\""
 
-  // TODO: use this
   val escapedBlockQuote = "\\" + blockQuote
 
-  val blockString = manyUntil(sourceChar, string(blockQuote)) -| (_.mkString) named "block string"
+  val blockString = manyUntil(sourceChar -| (_.toString), escapedBlock | string(blockQuote) >| "") -| (_.mkString) named "block string"
+
+  lazy val escapedBlock: Parser[String] = string(escapedBlockQuote) >> (ok(blockQuote), blockString).mapN(_ + _)
 
   // TODO
-  def blockStringValue(raw: String) = raw
+  def blockStringValue(raw: String) = {
+    def isBlank(str: String) = str.forall(isWhiteSpace)
+
+    val lines = NonEmptyList.fromListUnsafe(raw.split("""\r\n|[\n\r]""").toList)
+    val commonIndent = lines.tail.filterNot(isBlank).map(_.prefixLength(isWhiteSpace)).minimumOption.getOrElse(0)
+    val adjustedLines = lines.head :: lines.tail.map(_.drop(commonIndent))
+    adjustedLines.dropWhile_(isBlank).takeWhile_(!isBlank(_)).mkString("\n")
+  }
 
   val blockQuotedString = string(blockQuote) ~> blockString -| blockStringValue named "block quote"
 
@@ -205,7 +219,7 @@ object parse extends App {
 
   val document = many1(definition) -| Document.apply named "document"
 
-  val block = "\"\"\"test\"\"\""
+  val block = "\"\"\"\n              te\\\"\"\"sas\ndf\"dkdkdkd\"\"t\"\"\""
 
   val test =
     s"""{  #   testing
