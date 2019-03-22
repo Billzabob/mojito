@@ -64,11 +64,9 @@ object parse extends App {
 
   val name = token(nameFirst ~ stringOf(nameRest) -| { case (a, b) => a.toString + b } named "name")
 
-  val operationType = string("query") | string("mutation") | string("subscription")
+  val operationType = token(string("query") | string("mutation") | string("subscription")) named "operation type"
 
   def variableDefinitions = ???
-
-  def directives = ???
 
   val alias = name <~ colon named "alias"
 
@@ -161,7 +159,7 @@ object parse extends App {
 
   lazy val listValue = squareBrackets(many(value)) -| ListValue.apply named "list value"
 
-  val objectField = (name <~ colon, value).mapN(_ -> _)
+  val objectField = (name <~ colon, value).mapN(_ -> _) named "object field"
 
   val objectValue = braces(many(objectField)).map(_.toMap) -| ObjectValue.apply named "object value"
 
@@ -183,13 +181,19 @@ object parse extends App {
 
   val arguments = parens(many1(argument)) named "arguments"
 
-  final case class Field(alias: Option[String], name: String, arguments: Option[NonEmptyList[Argument]], selectionSet: Option[NonEmptyList[Field]])
+  final case class Directive(name: String, arguments: Option[NonEmptyList[Argument]])
+
+  final case class Field(alias: Option[String], name: String, arguments: Option[NonEmptyList[Argument]], directives: Option[NonEmptyList[Directive]], selectionSet: Option[NonEmptyList[Field]])
+
+  val directive = (token(char('@')) ~> name, opt(arguments)).mapN(Directive.apply) named "directive"
+
+  val directives = many1(directive) named "directives"
 
   val field: Parser[Field] = (
     opt(alias),
     name,
     opt(arguments),
-    //        opt(directives),
+    opt(directives),
     opt(selectionSet)
   ).mapN(Field.apply) named "field"
 
@@ -204,16 +208,16 @@ object parse extends App {
   final case class Operation(opType: String,
                              name: Option[String],
                              //                       variableDefinitions: Option[String],
-                             //                       directives: Option[String],
+                             directives: Option[NonEmptyList[Directive]],
                              selectionSet: NonEmptyList[Field]) extends ExecutableDefinition
 
   val operationDefinition = (
     operationType,
     opt(name),
     //    opt(variableDefinitions),
-    //    opt(directives),
+    opt(directives),
     selectionSet
-  ).mapN(Operation.apply) | selectionSet -| (a => Operation("query", None, a)) named "operation"
+  ).mapN(Operation.apply) | selectionSet -| (ss => Operation("query", None, None, ss)) named "operation"
 
   val executableDefinition: Parser[ExecutableDefinition] = operationDefinition -| (e => e: ExecutableDefinition) named "executable definition" //| fragmentDefinition
 
@@ -226,7 +230,7 @@ object parse extends App {
   val block = "\"\"\"\n              te\\\"\"\"sas\ndf\"dkdkdkd\"\"t\"\"\""
 
   val test =
-    s"""{  #   testing
+    s"""query @ henlo ( whats : "up" ) {  #   testing
       |  hi
       |  (
       |  test
@@ -238,7 +242,7 @@ object parse extends App {
       |  {test: $block}
       |  $block
       |  ]
-      |  )
+      |  ) @ blah (foo: "hello")
       |  {
       |  hi
       |  }
