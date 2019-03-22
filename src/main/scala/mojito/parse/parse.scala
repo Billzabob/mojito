@@ -104,6 +104,8 @@ object parse extends App {
 
   final case class ListValue(values: List[Value]) extends Value
 
+  final case class ObjectValue(values: Map[String, Value]) extends Value
+
   val variable = token(char('$')) ~> name -| Variable.apply named "variable"
 
   val intValue = token(intPart -| IntValue.apply) named "integer value"
@@ -147,7 +149,7 @@ object parse extends App {
 
   val blockQuotedString = string(blockQuote) ~> blockString -| blockStringValue named "block quote"
 
-  val stringValue = token(blockQuotedString) -| StringValue.apply named "string value"
+  val stringValue = token(blockQuotedString | quotedString) -| StringValue.apply named "string value"
 
   val keywords = NonEmptyList.of("true", "false", "null")
 
@@ -159,9 +161,11 @@ object parse extends App {
 
   lazy val listValue = squareBrackets(many(value)) -| ListValue.apply named "list value"
 
-//  def objectValue = ???
+  val objectField = (name <~ colon, value).mapN(_ -> _)
 
-  val value: Parser[Value] = {
+  val objectValue = braces(many(objectField)).map(_.toMap) -| ObjectValue.apply named "object value"
+
+  lazy val value: Parser[Value] = {
     floatValue.widen[Value] |
     intValue.widen[Value] |
     stringValue.widen[Value] |
@@ -169,7 +173,8 @@ object parse extends App {
     enumValue.widen[Value] |
     booleanValue.widen[Value] |
     nullValue.widen[Value] |
-    listValue.widen[Value]
+    listValue.widen[Value] |
+    objectValue.widen[Value]
   } named "value"
 
   final case class Argument(name: String, value: Value)
@@ -229,6 +234,8 @@ object parse extends App {
       |  [
       |  1
       |  1.12e53
+      |  "blah"
+      |  {test: $block}
       |  $block
       |  ]
       |  )
