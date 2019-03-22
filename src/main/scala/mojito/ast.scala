@@ -7,17 +7,25 @@ object ast {
 
   sealed trait ExecutableDefinition extends Definition
 
-  final case class Operation(opType: String,
-                             name: Option[String],
-                             // variableDefinitions: Option[String],
-                             directives: Option[NonEmptyList[Directive]],
-                             selectionSet: NonEmptyList[Field]) extends ExecutableDefinition
+  final case class Operation(
+    opType: String,
+    name: Option[String],
+    // variableDefinitions: Option[String],
+    directives: Option[NonEmptyList[Directive]],
+    selectionSet: NonEmptyList[Field]
+  ) extends ExecutableDefinition
 
   final case class Argument(name: String, value: Value)
 
   final case class Directive(name: String, arguments: Option[NonEmptyList[Argument]])
 
-  final case class Field(alias: Option[String], name: String, arguments: Option[NonEmptyList[Argument]], directives: Option[NonEmptyList[Directive]], selectionSet: Option[NonEmptyList[Field]])
+  final case class Field(
+    alias: Option[String],
+    name: String,
+    arguments: Option[NonEmptyList[Argument]],
+    directives: Option[NonEmptyList[Directive]],
+    selectionSet: Option[NonEmptyList[Field]]
+  )
 
   final case class Document(definitions: NonEmptyList[Definition])
 

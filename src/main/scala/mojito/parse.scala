@@ -75,14 +75,14 @@ trait Basics {
 trait Values extends Basics {
   lazy val value: Parser[Value] = {
     floatValue.widen[Value] |
-      intValue.widen[Value] |
-      stringValue.widen[Value] |
-      variable.widen[Value] |
-      enumValue.widen[Value] |
-      booleanValue.widen[Value] |
-      nullValue.widen[Value] |
-      listValue.widen[Value] |
-      objectValue.widen[Value]
+    intValue.widen[Value] |
+    stringValue.widen[Value] |
+    variable.widen[Value] |
+    enumValue.widen[Value] |
+    booleanValue.widen[Value] |
+    nullValue.widen[Value] |
+    listValue.widen[Value] |
+    objectValue.widen[Value]
   } named "value"
 
   private val signNum = (sign, nonZeroDigit, stringOf(digit)).mapN((s, nz, d) => s * BigInt(nz.toString + d)) named "signed number"
