@@ -6,9 +6,9 @@ import cats.data.NonEmptyList
 import cats.implicits._
 import mojito.ast._
 
-object parser extends Documents
+object parser extends DocumentParsers
 
-trait Basics {
+trait BasicParsers {
   def braces[A](p: => Parser[A]): Parser[A] = bracket(char('{'), p, char('}')) named "braces"
 
   def parens[A](p: => Parser[A]): Parser[A] = bracket(char('('), p, char(')')) named "parens"
@@ -72,7 +72,7 @@ trait Basics {
   private val nameRest = nameFirst | digit
 }
 
-trait Values extends Basics {
+trait ValueParsers extends BasicParsers {
   lazy val value: Parser[Value] = {
     floatValue.widen[Value] |
     intValue.widen[Value] |
@@ -153,19 +153,19 @@ trait Values extends Basics {
   private val objectValue = braces(many(objectField)).map(_.toMap) -| ObjectValue.apply named "object value"
 }
 
-trait Arguments extends Values with Basics {
+trait ArgumentParsers extends ValueParsers with BasicParsers {
   lazy val arguments: Parser[NonEmptyList[Argument]] = parens(many1(argument)) named "arguments"
 
   private val argument = (name <~ colon, value).mapN(Argument.apply) named "argument"
 }
 
-trait Directives extends Arguments with Basics {
+trait DirectiveParsers extends ArgumentParsers with BasicParsers {
   lazy val directives: Parser[NonEmptyList[Directive]] = many1(directive) named "directives"
 
   private val directive = (token(char('@')) ~> name, opt(arguments)).mapN(Directive.apply) named "directive"
 }
 
-trait SelectionSet extends Directives with Basics {
+trait SelectionSetParsers extends DirectiveParsers with BasicParsers {
   lazy val selectionSet: Parser[NonEmptyList[Field]] = braces(many1(selection)) named "selection set"
 
   private val alias = name <~ colon named "alias"
@@ -181,7 +181,7 @@ trait SelectionSet extends Directives with Basics {
   private val selection = field named "selection" //| fragmentSpread | inlineFragment
 }
 
-trait Documents extends Basics with Directives with SelectionSet {
+trait DocumentParsers extends DirectiveParsers with SelectionSetParsers with BasicParsers {
   lazy val document: Parser[Document] = many1(definition) -| Document.apply named "document"
 
   private val operationType = token(string("query") | string("mutation") | string("subscription")) named "operation type"
