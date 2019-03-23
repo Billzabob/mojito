@@ -3,10 +3,9 @@ def mojitoWarts(sv: String) =
   CrossVersion.partialVersion(sv) match {
     case Some((2, 12)) =>
       Warts.allBut(
+        Wart.Any,                // false positives
         Wart.Nothing,            // false positives
-        Wart.DefaultArguments,   // used for labels in a bunch of places
-        Wart.ImplicitConversion, // we know what we're doing
-        Wart.PublicInference     // doesn't work in 2.2.0
+        Wart.ImplicitConversion  // we know what we're doing
       )
     case _ => Nil
   }
