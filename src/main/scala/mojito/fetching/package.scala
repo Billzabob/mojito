@@ -2,5 +2,6 @@ package mojito
 
 package object fetching {
   type UserId = Int
-  type PostId = String
+  type PostId = Int
+  type URL = String
 }

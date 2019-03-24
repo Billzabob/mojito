@@ -25,9 +25,9 @@ object Post extends Data[PostId, Post] with FakeLatency with FakePostDB {
 
 trait FakePostDB {
   val postDatabase: Map[PostId, Post] = Map(
-    "1" -> Post("1", "@one"),
-    "2" -> Post("2", "@two"),
-    "3" -> Post("3", "@three"),
-    "4" -> Post("4", "@four")
+    1 -> Post(1, "@one"),
+    2 -> Post(2, "@two"),
+    3 -> Post(3, "@three"),
+    4 -> Post(4, "@four")
   )
 }
