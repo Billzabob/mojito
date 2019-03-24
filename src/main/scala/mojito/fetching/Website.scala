@@ -10,4 +10,7 @@ final case class Website(siteTitle: String) {
 
   def users[F[_] : ConcurrentEffect](ids: List[UserId]): Fetch[F, List[User]] =
     ids.traverse(user[F])
+
+  def allUsers[F[_] : ConcurrentEffect]: Fetch[F, List[User]] =
+    users(User.userDatabase.keys.toList)
 }

@@ -2,15 +2,20 @@ package mojito.fetching
 
 import cats.effect._
 import cats.implicits._
-import fetch._
 
-object fetching extends IOApp {
+object FetchExample extends IOApp {
   def run(args: List[String]): IO[ExitCode] = {
 
-    def website[F[_] : ConcurrentEffect] = Website("Title").user[F](1).flatMap(_.post[F]("1"))
+//    def usersForWebsite[F[_] : ConcurrentEffect](website: Website): Fetch[F, List[User]] =
+//      website.allUsers[F]
+//
+//    def postsForUser[F[_] : ConcurrentEffect](user: User): Fetch[F, List[Post]] =
+//      user.allPosts[F]
 
     for {
-      _ <- Fetch.run[IO](website)
+      _ <- IO(println("Starting"))
+//      _ <- Fetch.run[IO](postsForUsers)
+      _ <- IO(println("Done"))
     } yield ExitCode.Success
   }
 }

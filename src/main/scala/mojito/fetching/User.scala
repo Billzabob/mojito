@@ -11,6 +11,9 @@ final case class User(id: UserId, username: String) {
 
   def posts[F[_] : ConcurrentEffect](ids: List[PostId]): Fetch[F, List[Post]] =
     ids.traverse(post[F])
+
+  def allPosts[F[_] : ConcurrentEffect]: Fetch[F, List[Post]] =
+    posts(Post.postDatabase.keys.toList)
 }
 
 object User extends Data[UserId, User] with FakeLatency with FakeUserDB {
