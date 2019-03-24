@@ -16,10 +16,10 @@ object Post extends Data[PostId, Post] with FakeLatency with FakePostDB {
     override def CF = ConcurrentEffect[F]
 
     override def fetch(id: PostId): F[Option[Post]] =
-      latency[F](s"One User $id") >> CF.pure(postDatabase.get(id))
+      latency[F](s"One Post $id") >> CF.pure(postDatabase.get(id))
 
     override def batch(ids: NonEmptyList[PostId]): F[Map[PostId, Post]] =
-      latency[F](s"Batch Users $ids") >> CF.pure(postDatabase.filterKeys(ids.toList.toSet))
+      latency[F](s"Batch Posts $ids") >> CF.pure(postDatabase.filterKeys(ids.toList.toSet))
   }
 }
 

@@ -16,12 +16,12 @@ object FetchExample extends IOApp {
     def posts[F[_] : ConcurrentEffect](website: Website) =
       usersForWebsite[F](website).flatMap(_.traverse(postsForUser[F]))
 
-    val website = Website("Title")
+    val website = Website("Title", List(1, 2, 3, 4))
 
     for {
       _ <- IO(println("Starting"))
-      _ <- Fetch.run[IO](posts(website))
-      _ <- IO(println("Done"))
+      results <- Fetch.run[IO](posts(website))
+      _ <- IO(println(s"Results: $results"))
     } yield ExitCode.Success
   }
 }
