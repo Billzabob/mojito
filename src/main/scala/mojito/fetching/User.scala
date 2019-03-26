@@ -5,11 +5,8 @@ import cats.effect.ConcurrentEffect
 import cats.implicits._
 import fetch._
 
-final case class User(id: UserId, username: String, posts: List[PostId]) {
+final case class User(id: UserId, username: String) {
   def allPosts[F[_] : ConcurrentEffect]: Fetch[F, List[Post]] =
-    posts.traverse(post[F])
-
-  private def post[F[_] : ConcurrentEffect](id: PostId) =
     Fetch(id, Post.source)
 }
 
@@ -31,9 +28,9 @@ object User extends Data[UserId, User] with FakeLatency with FakeUserDB {
 
 trait FakeUserDB {
   val userDatabase: Map[UserId, User] = Map(
-    1 -> User(1, "@one", List(1, 2)),
-    2 -> User(2, "@two", List(2, 3)),
-    3 -> User(3, "@three", List(3, 4)),
-    4 -> User(4, "@four", List())
+    1 -> User(1, "@one"),
+    2 -> User(2, "@two"),
+    3 -> User(3, "@three"),
+    4 -> User(4, "@four")
   )
 }

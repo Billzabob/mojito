@@ -5,29 +5,38 @@ import cats.effect.ConcurrentEffect
 import cats.implicits._
 import fetch._
 
-final case class Post(id: PostId, content: String)
+final case class Post(content: String, users: List[UserId])
 
-object Post extends Data[PostId, Post] with FakeLatency with FakePostDB {
+object Post extends Data[UserId, List[Post]] with FakeLatency with FakePostDB {
   def name = "Posts"
 
-  def source[F[_] : ConcurrentEffect]: DataSource[F, PostId, Post] = new DataSource[F, PostId, Post] {
+  def source[F[_] : ConcurrentEffect]: DataSource[F, UserId, List[Post]] = new DataSource[F, UserId, List[Post]] {
     override def data = Post
 
     override def CF = ConcurrentEffect[F]
 
-    override def fetch(id: PostId): F[Option[Post]] =
-      latency[F](s"One Post $id") >> CF.pure(postDatabase.get(id))
+    override def fetch(id: UserId): F[Option[List[Post]]] =
+      latency[F](s"One Post $id") >> CF.pure(getPostsForUser(id))
 
-    override def batch(ids: NonEmptyList[PostId]): F[Map[PostId, Post]] =
-      latency[F](s"Batch Posts $ids") >> CF.pure(postDatabase.filterKeys(ids.toList.toSet))
+    override def batch(ids: NonEmptyList[UserId]): F[Map[UserId, List[Post]]] =
+      latency[F](s"Batch Posts $ids") >> CF.pure(ids.map(id => getPostsForUser(id).map(v => id -> v)).toList.flattenOption.toMap)
+
+    private def getPostsForUser(id: UserId): Option[List[Post]] = {
+      postDatabase.filter(_.users.contains_(id)) match {
+        case Nil =>
+          None
+        case posts =>
+          Some(posts)
+      }
+    }
   }
 }
 
 trait FakePostDB {
-  val postDatabase: Map[PostId, Post] = Map(
-    1 -> Post(1, "@one"),
-    2 -> Post(2, "@two"),
-    3 -> Post(3, "@three"),
-    4 -> Post(4, "@four")
+  val postDatabase: List[Post] = List(
+    Post("content one", List()),
+    Post("content two", List(2)),
+    Post("content three", List(3)),
+    Post("content four", List(1, 2, 3, 4))
   )
 }
