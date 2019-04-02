@@ -15,8 +15,8 @@ trait GQLObject {
       case Node(_, subtrees) =>
         subtrees.traverse { subTree =>
           val field = subTree.value
-          fields.getOrElse(field, GQLObject.noSuchFieldError(field))(subTree).map(field -> _)
-        }.map(a => JsonObj(a.toMap))
+          fields.getOrElse(field, GQLObject.noSuchFieldError(field))(subTree).map(json => field -> json)
+        }.map(_.toMap).map(JsonObj)
       case Leaf(value) =>
         Fetch.error(new Exception(s"Invalid request: $value"))
     }
@@ -26,7 +26,7 @@ trait GQLObject {
 }
 
 object GQLObject {
-  def noSuchFieldError[F[_] : ConcurrentEffect](field: String): Tree[String] => Fetch[F, JsonType] = _ => Fetch.error[F, JsonType](new Exception(s"No such field: $field"))
+  def noSuchFieldError[F[_] : ConcurrentEffect](field: String): NameMeToo[F] = _ => Fetch.error[F, JsonType](new Exception(s"No such field: $field"))
 
   type NameMeToo[F[_]] = Tree[String] => Fetch[F, JsonType]
 }
