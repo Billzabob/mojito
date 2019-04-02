@@ -27,31 +27,22 @@ object schema {
   }
 
   object ToJsonType {
-    // TODO: Remember how to add a instance creator helper that lets you do something like:
-    // TODO: implicit val fromString: ToJsonType[String] = JsonString(_)
-    implicit val fromString: ToJsonType[String] = new ToJsonType[String] {
-      def toJsonType(s: String) = JsonString(s)
+
+    def instance[T](func: T => JsonType): ToJsonType[T] = new ToJsonType[T] {
+      override def toJsonType(t: T) = func(t)
     }
 
-    implicit val fromInt: ToJsonType[Int] = new ToJsonType[Int] {
-      def toJsonType(i: Int) = JsonNumber(i.toDouble)
-    }
+    implicit val fromString: ToJsonType[String] = instance(JsonString)
 
-    implicit val fromLong: ToJsonType[Long] = new ToJsonType[Long] {
-      def toJsonType(l: Long) = JsonNumber(l.toDouble)
-    }
+    implicit val fromInt: ToJsonType[Int] = instance(i => JsonNumber(i.toDouble))
 
-    implicit val fromFloat: ToJsonType[Float] = new ToJsonType[Float] {
-      def toJsonType(f: Float) = JsonNumber(f.toDouble)
-    }
+    implicit val fromLong: ToJsonType[Long] = instance(l => JsonNumber(l.toDouble))
 
-    implicit val fromDouble: ToJsonType[Double] = new ToJsonType[Double] {
-      def toJsonType(d: Double) = JsonNumber(d)
-    }
+    implicit val fromFloat: ToJsonType[Float] = instance(f => JsonNumber(f.toDouble))
 
-    implicit def fromList[T](implicit ev: ToJsonType[T]): ToJsonType[List[T]] = new ToJsonType[List[T]] {
-      override def toJsonType(t: List[T]) = JsonArray(t.map(ev.toJsonType))
-    }
+    implicit val fromDouble: ToJsonType[Double] = instance(JsonNumber)
+
+    implicit def fromList[T](implicit ev: ToJsonType[T]): ToJsonType[List[T]] = instance(ts => JsonArray(ts.map(ev.toJsonType)))
   }
 
   final case class Field[F[_]](resolve: Tree[String] => Fetch[F, JsonType], description: Option[String])
