@@ -27,6 +27,8 @@ object schema {
   }
 
   object ToJsonType {
+    // TODO: Remember how to add a instance creator helper that lets you do something like:
+    // TODO: implicit val fromString: ToJsonType[String] = JsonString(_)
     implicit val fromString: ToJsonType[String] = new ToJsonType[String] {
       def toJsonType(s: String) = JsonString(s)
     }
@@ -36,10 +38,6 @@ object schema {
     }
 
     implicit val fromLong: ToJsonType[Long] = new ToJsonType[Long] {
-      def toJsonType(l: Long) = JsonNumber(l.toDouble)
-    }
-    // TODO: Or
-    implicit object fromLong2 extends ToJsonType[Long] {
       def toJsonType(l: Long) = JsonNumber(l.toDouble)
     }
 
