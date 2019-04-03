@@ -1,9 +1,10 @@
 package mojito
 
+import cats.Foldable
 import cats.effect.{ConcurrentEffect, ExitCode, IO, IOApp}
 import fetch.Fetch
 import mojito.fetching.Website
-import mojito.schema.JsonType.{JsonArray, JsonNumber, JsonString}
+import mojito.schema.JsonType.{JsonArray, JsonBoolean, JsonNull, JsonNumber, JsonString}
 import mojito.schema.Tree.{Leaf, Node}
 
 object schema {
@@ -20,6 +21,10 @@ object schema {
 
     final case class JsonNumber(value: Double) extends JsonType
 
+    final case class JsonBoolean(value: Boolean) extends JsonType
+
+    final case object JsonNull extends JsonType
+
   }
 
   trait ToJsonType[T] {
@@ -27,6 +32,8 @@ object schema {
   }
 
   object ToJsonType {
+
+    def apply[T](implicit instance: ToJsonType[T]): ToJsonType[T] = instance
 
     def instance[T](func: T => JsonType): ToJsonType[T] = new ToJsonType[T] {
       override def toJsonType(t: T) = func(t)
@@ -42,7 +49,11 @@ object schema {
 
     implicit val fromDouble: ToJsonType[Double] = instance(JsonNumber)
 
-    implicit def fromList[T](implicit ev: ToJsonType[T]): ToJsonType[List[T]] = instance(ts => JsonArray(ts.map(ev.toJsonType)))
+    implicit val fromBoolean: ToJsonType[Boolean] = instance(JsonBoolean)
+
+    implicit def fromOption[T](implicit ev: ToJsonType[T]): ToJsonType[Option[T]] = instance(_.fold[JsonType](JsonNull)(ev.toJsonType))
+
+    implicit def fromFoldable[F[_], T](implicit ev: ToJsonType[T], ev2: Foldable[F]): ToJsonType[F[T]] = instance(ft => JsonArray(ev2.toList(ft).map(ev.toJsonType)))
   }
 
   final case class Field[F[_]](resolve: Tree[String] => Fetch[F, JsonType], description: Option[String])
