@@ -59,6 +59,8 @@ object schema {
     implicit def fromOption[T](implicit ev: ToJson[T]): ToJson[Option[T]] = instance(_.fold[Json](JsonNull)(ev.toJson))
 
     implicit def fromFoldable[F[_], T](implicit ev: ToJson[T], ev2: Foldable[F]): ToJson[F[T]] = instance(ft => JsonArray(ev2.toList(ft).map(ev.toJson)))
+
+    implicit def fromMap[T](implicit ev: ToJson[T]): ToJson[Map[String, T]] = instance(map => JsonObj(map.mapValues(ev.toJson)))
   }
 
   final case class Field[F[_]](resolve: Tree[String] => Fetch[F, Json])
