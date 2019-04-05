@@ -3,6 +3,7 @@ package mojito.fetching
 import cats.effect.ConcurrentEffect
 import cats.implicits._
 import fetch._
+import matryoshka.data.Fix
 import mojito.schema.Json.JsonArray
 import mojito.schema.{Field, Fields}
 
@@ -18,7 +19,7 @@ final case class Website(siteTitle: String, users: List[UserId]) {
 object Website {
   implicit def websiteFields: Fields[Website] = new Fields[Website] {
     def fields[F[_] : ConcurrentEffect](website: Website): Map[String, Field[F]] = List(
-      "allUsers" -> Field(tree => website.allUsers.flatMap(_.traverse(a => GQLObject.getFieldsOfObject(a, tree)).map(JsonArray)))
+      "allUsers" -> Field(tree => website.allUsers.flatMap(_.traverse(user => GQLObject.getFieldsOfObject(user, tree)).map(users => Fix(JsonArray(users)))))
     ).toMap
   }
 }

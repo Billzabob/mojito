@@ -4,6 +4,7 @@ import cats.data.NonEmptyList
 import cats.effect.ConcurrentEffect
 import cats.implicits._
 import fetch._
+import matryoshka.data.Fix
 import mojito.schema.Json.JsonNumber
 import mojito.schema.{Field, Fields}
 
@@ -30,7 +31,7 @@ object User extends Data[UserId, User] with FakeLatency with FakeUserDB {
 
   implicit def userFields: Fields[User] = new Fields[User] {
     def fields[F[_] : ConcurrentEffect](user: User): Map[String, Field[F]] = List(
-      "id" -> Field(_ => Fetch.pure(JsonNumber(user.id.toDouble)))
+      "id" -> Field(_ => Fetch.pure(Fix(JsonNumber(user.id.toDouble))))
     ).toMap
   }
 }
