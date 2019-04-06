@@ -5,9 +5,10 @@ import cats.implicits._
 import fetch.Fetch
 import matryoshka.data.Fix
 import mojito.schema.Fields._
-import mojito.schema.Json.JsonObj
+import mojito.json.Json
+import mojito.json.Json.JsonObj
 import mojito.schema.Tree.{Leaf, Node}
-import mojito.schema.{Fields, Json, Tree}
+import mojito.schema.{Fields, Tree}
 
 object GQLObject {
   def getFieldsOfObject[F[_] : ConcurrentEffect, T : Fields](obj: T, tree: Tree[String]): Fetch[F, Fix[Json]] = tree match {

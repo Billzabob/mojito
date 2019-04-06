@@ -4,7 +4,7 @@ import cats.effect.ConcurrentEffect
 import cats.implicits._
 import fetch._
 import matryoshka.data.Fix
-import mojito.schema.Json.JsonArray
+import mojito.json.Json.JsonArray
 import mojito.schema.{Field, Fields}
 
 final case class Website(siteTitle: String, users: List[UserId]) {

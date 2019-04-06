@@ -5,7 +5,7 @@ import cats.effect.ConcurrentEffect
 import cats.implicits._
 import fetch._
 import matryoshka.data.Fix
-import mojito.schema.Json.JsonNumber
+import mojito.json.Json.JsonNumber
 import mojito.schema.{Field, Fields}
 
 final case class User(id: UserId, username: String) {
