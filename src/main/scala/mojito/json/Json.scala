@@ -19,3 +19,35 @@ object Json {
   final case class JsonNull[T]() extends Json[T]
 
 }
+
+object testing extends App {
+  import matryoshka._
+  import matryoshka.implicits._
+  import scalaz.Functor
+
+  sealed trait Expr[T] extends Product with Serializable
+
+  final case class Num[T](num: Int) extends Expr[T]
+
+  final case class Mul[T](l: T, r: T) extends Expr[T]
+
+  implicit val exprFunctor: Functor[Expr] = new Functor[Expr] {
+    override def map[A, B](fa: Expr[A])(f: A => B) = fa match {
+      case Num(num) => Num(num)
+      case Mul(l, r) => Mul(f(l), f(r))
+    }
+  }
+
+  val algebra: Algebra[Expr, Int] = {
+    case Num(num) => num
+    case Mul(l, r) => l * r
+  }
+
+  def foo[T](implicit T: Corecursive.Aux[T, Expr]): T = Mul(Num[T](2).embed, Num[T](3).embed).embed
+
+  import matryoshka.data.Mu
+
+  val result = foo[Mu[Expr]].cata(algebra)
+
+  println(result)
+}
