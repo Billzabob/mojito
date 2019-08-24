@@ -31,5 +31,8 @@ bin/
 # IntelliJ
 .idea/
 
+# Metals
+.metals/
+
 # Bloop
 .bloop/
