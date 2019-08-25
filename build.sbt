@@ -16,7 +16,8 @@ lazy val buildSettings = Seq(
   organization := "org.billzabob",
   libraryDependencies += "org.tpolecat" %% "atto-core"  % "0.6.5",
   libraryDependencies += "org.typelevel" %% "cats-core" % "1.6.0",
-  libraryDependencies += "org.typelevel" %% "cats-effect" % "1.2.0"
+  libraryDependencies += "org.typelevel" %% "cats-effect" % "1.2.0",
+  libraryDependencies += "io.chrisdavenport" %% "cats-par" % "0.2.1",
   licenses ++= Seq(
     ("MIT", url("http://opensource.org/licenses/MIT"))
   ),

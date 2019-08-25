@@ -1,5 +1,4 @@
 package mojito.json
-import cats.kernel.Monoid
 
 sealed trait Json extends Product with Serializable
 
@@ -16,7 +15,5 @@ object Json {
   final case class JsonBoolean(value: Boolean) extends Json
 
   final case object JsonNull extends Json
-
-  implicit val monoid: Monoid[Json] = ???
 
 }
